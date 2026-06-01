@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "opendata-fetch"
+version = "0.1.0"
+description = "Reliably download U.S. government open datasets as the agencies ship them."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Bhanu Bade" }]
+keywords = ["open-data", "government", "federal", "download", "epa", "census", "cdc", "nces", "hrsa"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Utilities",
+]
+# Core has zero runtime dependencies: stdlib only (urllib, zipfile, tomllib).
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+opendata-fetch = "opendata_fetch.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/manojbade/opendata-fetch"
+Source = "https://github.com/manojbade/opendata-fetch"
+Issues = "https://github.com/manojbade/opendata-fetch/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["opendata_fetch"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"opendata_fetch/sources.toml" = "opendata_fetch/sources.toml"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

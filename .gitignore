@@ -1,0 +1,29 @@
+# Downloaded data is never committed. opendata-fetch fetches it on demand.
+data/
+*.zip
+*.csv
+*.json
+*.geojson
+*.gpkg
+*.shp
+*.dbf
+*.shx
+*.prj
+*.parquet
+*.part
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

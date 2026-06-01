@@ -1,0 +1,195 @@
+# opendata-fetch source registry.
+#
+# Each [[source]] is a dataset opendata-fetch can download. Most are
+# declarative: a slug, some metadata, and a list of files. `{var}` in a file's
+# url/dest is filled from that source's `vars` table, so bumping a dataset to a
+# new vintage is a one-line edit.
+#
+# To add a source: copy a block, change the slug/metadata/files, run
+# `opendata-fetch fetch <slug>`. See CONTRIBUTING.md.
+#
+# min_bytes is an integrity floor: downloads smaller than this are rejected as
+# truncated or as HTML error pages. Values are set well below the observed size
+# so a normal file passes but a half-download or error page fails.
+
+# --------------------------------------------------------------------------- #
+[[source]]
+slug = "01-nces-schools"
+agency = "NCES (U.S. Dept. of Education)"
+dataset = "Common Core of Data: school Directory, Characteristics, Membership, and EDGE geocodes"
+doc = "docs/sources/01-nces-schools.md"
+homepage = "https://nces.ed.gov/ccd/files.asp"
+update_cadence = "annual (school year); bump `vintage` and the 6-digit release stamp in filenames"
+vars = { vintage = "2425" }
+
+  [[source.files]]
+  url = "https://nces.ed.gov/ccd/Data/zip/ccd_sch_029_{vintage}_w_1a_073025.zip"
+  dest = "ccd_sch_029_{vintage}_w_1a_073025.zip"
+  min_bytes = 8_000_000
+
+  [[source.files]]
+  url = "https://nces.ed.gov/ccd/Data/zip/ccd_sch_129_{vintage}_w_1a_073025.zip"
+  dest = "ccd_sch_129_{vintage}_w_1a_073025.zip"
+  min_bytes = 3_000_000
+
+  [[source.files]]
+  url = "https://nces.ed.gov/ccd/Data/zip/ccd_sch_052_{vintage}_l_1a_073025.zip"
+  dest = "ccd_sch_052_{vintage}_l_1a_073025.zip"
+  min_bytes = 150_000_000
+
+  [[source.files]]
+  url = "https://nces.ed.gov/programs/edge/data/EDGE_GEOCODE_PUBLICSCH_{vintage}.zip"
+  dest = "EDGE_GEOCODE_PUBLICSCH_{vintage}.zip"
+  min_bytes = 20_000_000
+
+# --------------------------------------------------------------------------- #
+[[source]]
+slug = "02-epa-npl-superfund"
+agency = "EPA"
+dataset = "National Priorities List (Superfund) site boundaries and human-exposure status"
+doc = "docs/sources/02-epa-npl-superfund.md"
+homepage = "https://www.epa.gov/superfund"
+update_cadence = "rolling; EPA refreshes both files periodically"
+
+  [[source.files]]
+  url = "https://opendata.arcgis.com/api/v3/datasets/d6e1591d9a424f1fa6d95a02095a06d7_0/downloads/data?format=geojson&spatialRefId=4326"
+  dest = "npl_boundaries.geojson"
+  min_bytes = 30_000_000
+
+  [[source.files]]
+  url = "https://www3.epa.gov/semsjson/Human_Exposure_Site_List.json"
+  dest = "human_exposure.json"
+  min_bytes = 500_000
+
+# --------------------------------------------------------------------------- #
+[[source]]
+slug = "03-epa-sdwa-water"
+agency = "EPA"
+dataset = "Safe Drinking Water (SDWA/ECHO) violations + service-area boundaries"
+doc = "docs/sources/03-epa-sdwa-water.md"
+homepage = "https://echo.epa.gov/tools/data-downloads"
+update_cadence = "rolling; both URLs track the latest published version"
+
+  [[source.files]]
+  url = "https://github.com/USEPA/ORD_SAB_Model/raw/refs/heads/main/Version_History/PWS_Boundaries_Latest.zip"
+  dest = "PWS_Boundaries_Latest.zip"
+  min_bytes = 400_000_000
+
+  [[source.files]]
+  url = "https://echo.epa.gov/files/echodownloads/SDWA_latest_downloads.zip"
+  dest = "SDWA_latest_downloads.zip"
+  min_bytes = 400_000_000
+
+# --------------------------------------------------------------------------- #
+[[source]]
+slug = "04-epa-tri"
+agency = "EPA"
+dataset = "Toxics Release Inventory (TRI) basic data file, national, single reporting year"
+doc = "docs/sources/04-epa-tri.md"
+homepage = "https://www.epa.gov/toxics-release-inventory-tri-program"
+update_cadence = "annual; bump `vintage` to the latest reporting year"
+vars = { vintage = "2024" }
+
+  [[source.files]]
+  url = "https://data.epa.gov/efservice/downloads/tri/mv_tri_basic_download/{vintage}_us/csv"
+  dest = "{vintage}_us.csv"
+  min_bytes = 30_000_000
+
+# --------------------------------------------------------------------------- #
+[[source]]
+slug = "05-cdc-svi"
+agency = "CDC / ATSDR"
+dataset = "Social Vulnerability Index (SVI), national, census-tract level"
+doc = "docs/sources/05-cdc-svi.md"
+homepage = "https://www.atsdr.cdc.gov/place-health/php/svi/index.html"
+update_cadence = "biennial; bump `vintage` to the latest release year"
+vars = { vintage = "2022" }
+
+  [[source.files]]
+  url = "https://svi.cdc.gov/Documents/Data/{vintage}/csv/states/SVI_{vintage}_US.csv"
+  dest = "SVI_{vintage}_US.csv"
+  min_bytes = 40_000_000
+
+# --------------------------------------------------------------------------- #
+[[source]]
+slug = "06-cdc-places"
+agency = "CDC"
+dataset = "PLACES: local health-measure estimates, census-tract level (Socrata)"
+doc = "docs/sources/06-cdc-places.md"
+homepage = "https://www.cdc.gov/places/"
+update_cadence = "annual; the Socrata `dataset_id` changes each release (re-discover on data.cdc.gov)"
+vars = { dataset_id = "cwsq-ngmh" }
+
+  [[source.files]]
+  url = "https://data.cdc.gov/api/views/{dataset_id}/rows.csv?accessType=DOWNLOAD"
+  dest = "PLACES_CensusTract.csv"
+  min_bytes = 600_000_000
+
+# --------------------------------------------------------------------------- #
+[[source]]
+slug = "07-hrsa-hpsa"
+agency = "HRSA"
+dataset = "Health Professional Shortage Areas: Primary Care, Mental Health, Dental Health"
+doc = "docs/sources/07-hrsa-hpsa.md"
+homepage = "https://data.hrsa.gov/data/download"
+update_cadence = "rolling; HRSA refreshes the data-download files continuously"
+
+  [[source.files]]
+  url = "https://data.hrsa.gov/DataDownload/DD_Files/BCD_HPSA_FCT_DET_PC.csv"
+  dest = "hpsa_pc.csv"
+  min_bytes = 30_000_000
+
+  [[source.files]]
+  url = "https://data.hrsa.gov/DataDownload/DD_Files/BCD_HPSA_FCT_DET_MH.csv"
+  dest = "hpsa_mh.csv"
+  min_bytes = 15_000_000
+
+  [[source.files]]
+  url = "https://data.hrsa.gov/DataDownload/DD_Files/BCD_HPSA_FCT_DET_DH.csv"
+  dest = "hpsa_dh.csv"
+  min_bytes = 15_000_000
+
+# --------------------------------------------------------------------------- #
+[[source]]
+slug = "08-cdc-nors"
+agency = "CDC"
+dataset = "National Outbreak Reporting System (NORS) waterborne/foodborne outbreaks (Socrata)"
+doc = "docs/sources/08-cdc-nors.md"
+homepage = "https://www.cdc.gov/nors/about/index.html"
+update_cadence = "annual; the Socrata `dataset_id` may change on a new release"
+vars = { dataset_id = "5xkq-dg7x" }
+
+  [[source.files]]
+  url = "https://data.cdc.gov/api/views/{dataset_id}/rows.csv?accessType=DOWNLOAD"
+  dest = "nors_outbreaks.csv"
+  min_bytes = 5_000_000
+
+# --------------------------------------------------------------------------- #
+[[source]]
+slug = "09-census-tracts"
+agency = "U.S. Census Bureau"
+dataset = "Cartographic Boundary Files: census tracts, national, 1:500k (shapefile)"
+doc = "docs/sources/09-census-tracts.md"
+homepage = "https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html"
+update_cadence = "annual (typically March/April); bump `vintage`"
+vars = { vintage = "2024" }
+
+  [[source.files]]
+  url = "https://www2.census.gov/geo/tiger/GENZ{vintage}/shp/cb_{vintage}_us_tract_500k.zip"
+  dest = "cb_{vintage}_us_tract_500k.zip"
+  min_bytes = 40_000_000
+
+# --------------------------------------------------------------------------- #
+[[source]]
+slug = "10-nces-edge-districts"
+agency = "NCES (U.S. Dept. of Education)"
+dataset = "EDGE school district composite boundaries (shapefile)"
+doc = "docs/sources/10-nces-edge-districts.md"
+homepage = "https://nces.ed.gov/programs/edge/Geographic/DistrictBoundaries"
+update_cadence = "annual (school year); bump `vintage`"
+vars = { vintage = "2425" }
+
+  [[source.files]]
+  url = "https://nces.ed.gov/programs/edge/data/EDGE_SCHOOLDISTRICT_TL25_SY{vintage}.zip"
+  dest = "EDGE_SCHOOLDISTRICT_TL25_SY{vintage}.zip"
+  min_bytes = 100_000_000
