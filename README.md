@@ -28,8 +28,18 @@ source is a config edit, not a coding task.
 
 ## Install
 
+Install straight from the repo (core has zero runtime dependencies, stdlib only):
+
 ```bash
-pip install opendata-fetch          # core: zero runtime dependencies (stdlib only)
+pip install git+https://github.com/manojbade/opendata-fetch
+```
+
+Or from a local clone, for development:
+
+```bash
+git clone https://github.com/manojbade/opendata-fetch
+cd opendata-fetch
+pip install -e ".[dev]"
 ```
 
 Requires Python 3.11+ (uses the stdlib `tomllib`).
