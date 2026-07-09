@@ -4,6 +4,7 @@ network. Covers the success path plus every guardrail and the extractor.
 
 from __future__ import annotations
 
+import hashlib
 import io
 import zipfile
 from contextlib import contextmanager
@@ -11,7 +12,16 @@ from contextlib import contextmanager
 import pytest
 
 from opendata_fetch import engine
-from opendata_fetch.engine import DownloadError, download_file, extract_archive
+from opendata_fetch.engine import (
+    DownloadError,
+    download_file,
+    extract_archive,
+    sha256_file,
+)
+
+
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 class _FakeResponse:
@@ -172,3 +182,55 @@ def test_unzip_fallback_errors_without_unzip(tmp_path, monkeypatch):
     monkeypatch.setattr(engine.shutil, "which", lambda name: None)
     with pytest.raises(DownloadError, match="unzip' command is not installed"):
         engine._extract_with_unzip(tmp_path / "x.zip", tmp_path)
+
+
+def test_sha256_file(tmp_path):
+    f = tmp_path / "x.bin"
+    f.write_bytes(b"hello world")
+    assert sha256_file(f) == _sha(b"hello world")
+
+
+def test_sha256_match_passes(tmp_path, monkeypatch):
+    payload = b"pinned-immutable-bytes"
+    dest = tmp_path / "out.bin"
+    with _patch_urlopen(monkeypatch, payload):
+        download_file("https://x.gov/f", dest, expected_sha256=_sha(payload))
+    assert dest.read_bytes() == payload
+
+
+def test_sha256_mismatch_rejected(tmp_path, monkeypatch):
+    dest = tmp_path / "out.bin"
+    with _patch_urlopen(monkeypatch, b"actual-bytes"):
+        with pytest.raises(DownloadError, match="failed sha256 check"):
+            download_file("https://x.gov/f", dest, expected_sha256=_sha(b"wrong"), retries=1)
+    assert not dest.exists()  # bad payload never lands at dest
+
+
+def test_sha256_uppercase_pin_accepted(tmp_path, monkeypatch):
+    payload = b"case-insensitive"
+    dest = tmp_path / "out.bin"
+    with _patch_urlopen(monkeypatch, payload):
+        download_file("https://x.gov/f", dest, expected_sha256=_sha(payload).upper())
+    assert dest.exists()
+
+
+def test_skip_if_cached_hash_matches(tmp_path, monkeypatch):
+    payload = b"already-here-and-valid"
+    dest = tmp_path / "out.bin"
+    dest.write_bytes(payload)
+
+    def explode(*a, **k):
+        raise AssertionError("must not hit network when cached hash matches")
+
+    monkeypatch.setattr(engine.urllib.request, "urlopen", explode)
+    download_file("https://x.gov/f", dest, expected_sha256=_sha(payload))
+    assert dest.read_bytes() == payload
+
+
+def test_redownload_if_cached_hash_differs(tmp_path, monkeypatch):
+    dest = tmp_path / "out.bin"
+    dest.write_bytes(b"stale-bytes")  # on disk but wrong hash
+    fresh = b"fresh-correct-bytes"
+    with _patch_urlopen(monkeypatch, fresh):
+        download_file("https://x.gov/f", dest, expected_sha256=_sha(fresh))
+    assert dest.read_bytes() == fresh  # replaced, not skipped

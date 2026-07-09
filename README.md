@@ -1,6 +1,16 @@
 # opendata-fetch
 
+[![PyPI](https://img.shields.io/pypi/v/opendata-fetch)](https://pypi.org/project/opendata-fetch/)
+![Python](https://img.shields.io/pypi/pyversions/opendata-fetch)
+[![ci](https://github.com/manojbade/opendata-fetch/actions/workflows/ci.yml/badge.svg)](https://github.com/manojbade/opendata-fetch/actions/workflows/ci.yml)
+[![url-health](https://github.com/manojbade/opendata-fetch/actions/workflows/url-health.yml/badge.svg)](https://github.com/manojbade/opendata-fetch/actions/workflows/url-health.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Reliably download U.S. government open datasets as the agencies ship them.**
+
+opendata-fetch lowers the barrier to building on authoritative U.S. public data
+(environment, health, education), supporting public access to information
+(UN SDG 16.10) and the public-interest tools built on top of it.
 
 opendata-fetch is a small, dependency-free tool for fetching public government open data
 files (EPA, Census, CDC, NCES, HRSA, ...) into your own pipeline. It handles
@@ -73,6 +83,24 @@ HRSA. Per-source provenance and field notes live in [`docs/sources/`](docs/sourc
 > **Note on size.** Several sources are large (CDC PLACES ~700 MB, EPA SDWA
 > ~1 GB across two zips). `fetch --all` downloads everything; fetch individual
 > slugs unless you really want the full set.
+
+## Integrity & provenance
+
+Every `fetch` writes a `manifest.json` next to the downloaded files recording,
+per file, the source URL, the fetch timestamp (UTC), the byte size, and the
+SHA-256 digest, an audit trail you can diff or archive.
+
+Immutable files (e.g. a fixed-vintage Census shapefile) can be **pinned** with a
+`sha256` in the registry. When pinned, `fetch` fails on any hash mismatch and
+upgrades the "skip if it already exists" shortcut to "skip only if the cached
+copy is *valid*". Rolling feeds that agencies republish in place are left
+unpinned on purpose (a pin would fail on every legitimate update). The SHA-256
+in a fetched `manifest.json` is exactly the value to copy into a `sha256` field
+when you want to pin a stable file.
+
+A scheduled [CI job](.github/workflows/url-health.yml) probes every source URL
+weekly and opens an issue if one breaks, so a rotated vintage or moved file
+surfaces as an alert instead of a failed `fetch`.
 
 ## Adding your own source
 

@@ -55,7 +55,7 @@ That's it. No Python.
 | `homepage` | no | agency landing page |
 | `update_cadence` | no | how often it changes / how to bump it |
 | `vars` | no | substitution variables (see below) |
-| `files` | one of | list of `{url, dest, min_bytes}` |
+| `files` | one of | list of `{url, dest, min_bytes, sha256?}` |
 | `handler` | one of | custom fetcher, for irregular sources (see below) |
 
 A source must have **either** `files` **or** `handler`, never both.
@@ -82,6 +82,22 @@ truncated file or an HTML error page. Too high and normal files fail; too low
 and a truncated download slips through. Note the observed size in the source's
 doc.
 
+### `sha256` (optional pin — stable files only)
+
+Add `sha256 = "<hex digest>"` to a file entry **only** when that exact file is
+immutable once published (a fixed-vintage Census/NCES file, for example). When
+set, `fetch` fails on any hash mismatch and skips re-download only if the cached
+copy still matches.
+
+**Do not pin rolling files** (daily feeds, "latest" URLs, Socrata exports that
+change in place) — a pin would fail on every legitimate update and train users
+to ignore the check. When in doubt, leave it unset.
+
+To get the digest, fetch the file once and copy the `sha256` from the generated
+`manifest.json` (or run `shasum -a 256 <file>`). Because the hash is
+vintage-specific, **re-pin (or drop the line) whenever you bump `vintage`** —
+the new file has a different hash.
+
 ## Bump a vintage (keeping a source current)
 
 When an agency publishes a new year/version:
@@ -91,8 +107,10 @@ When an agency publishes a new year/version:
    changed (e.g. NCES embeds a release-date stamp that isn't the vintage),
    update the `url`/`dest` templates too.
 3. Update `min_bytes` if the size shifted materially.
-4. `opendata-fetch fetch <slug> --force` to confirm.
-5. Note the change in the source's doc.
+4. If the file had a `sha256` pin, re-pin it to the new file's digest (or drop
+   the line) — the old hash will not match the new vintage.
+5. `opendata-fetch fetch <slug> --force` to confirm.
+6. Note the change in the source's doc.
 
 ## Add an irregular source (custom fetcher)
 

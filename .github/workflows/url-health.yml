@@ -1,0 +1,77 @@
+name: url-health
+
+# Weekly probe of every source URL so silent rot (a new vintage ships and the
+# old URL 404s) becomes a GitHub issue instead of a surprise at fetch time.
+
+on:
+  schedule:
+    - cron: "17 9 * * 1" # Mondays 09:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-urls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Probe source URLs
+        id: probe
+        run: |
+          set +e
+          python scripts/check_source_urls.py | tee url-health.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue if any URL is broken
+        if: steps.probe.outputs.exit_code != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('url-health.txt', 'utf8');
+            const title = 'Source URL health check failed';
+            const body = [
+              'The weekly URL health check found one or more broken source URLs.',
+              'A dataset vintage may have rotated (bump `vars`/URL in',
+              '`opendata_fetch/sources.toml`) or an agency moved the file.',
+              '',
+              '```',
+              report.trim(),
+              '```',
+            ].join('\n');
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'url-health',
+            });
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['url-health'],
+              });
+            }
+
+      - name: Fail the job if any URL is broken
+        if: steps.probe.outputs.exit_code != '0'
+        run: exit 1

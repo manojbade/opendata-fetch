@@ -20,10 +20,15 @@ Library usage::
 
 from __future__ import annotations
 
-from opendata_fetch.engine import DownloadError, download_file, extract_archive
+from opendata_fetch.engine import (
+    DownloadError,
+    download_file,
+    extract_archive,
+    sha256_file,
+)
 from opendata_fetch.registry import Source, get_source, list_sources, load_registry
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def fetch(
@@ -59,6 +64,7 @@ __all__ = [
     "Source",
     "download_file",
     "extract_archive",
+    "sha256_file",
     "DownloadError",
     "__version__",
 ]

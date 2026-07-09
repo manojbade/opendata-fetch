@@ -7,14 +7,18 @@ library entry point ``opendata_fetch.fetch`` and the CLI both call ``fetch_sourc
 from __future__ import annotations
 
 import importlib
+import json
 import logging
 import zipfile
+from datetime import UTC, datetime
 from pathlib import Path
 
-from opendata_fetch.engine import download_file, extract_archive
+from opendata_fetch.engine import download_file, extract_archive, sha256_file
 from opendata_fetch.registry import Source, get_source
 
 log = logging.getLogger(__name__)
+
+MANIFEST_NAME = "manifest.json"
 
 
 def fetch_source(
@@ -41,19 +45,47 @@ def fetch_source(
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     downloaded: list[Path] = []
+    entries: list[dict] = []
     for f in source.files:
         path = download_file(
             f.url,
             dest_dir / f.dest,
             force=force,
             expected_min_bytes=f.min_bytes,
+            expected_sha256=f.sha256,
         )
         downloaded.append(path)
+        entries.append(
+            {
+                "dest": f.dest,
+                "url": f.url,
+                "bytes": path.stat().st_size,
+                "sha256": sha256_file(path),
+            }
+        )
+
+    _write_manifest(dest_dir, source, entries)
 
     if extract:
         _extract_zips(downloaded)
 
     return downloaded
+
+
+def _write_manifest(dest_dir: Path, source: Source, entries: list[dict]) -> None:
+    """Write a provenance manifest recording what was fetched, when, and its hash.
+
+    The recorded sha256 values are also the numbers you would copy into a
+    source's ``sha256`` registry field to pin an immutable file.
+    """
+    manifest = {
+        "slug": source.slug,
+        "agency": source.agency,
+        "dataset": source.dataset,
+        "fetched_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "files": entries,
+    }
+    (dest_dir / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2) + "\n")
 
 
 def _extract_zips(paths: list[Path]) -> None:

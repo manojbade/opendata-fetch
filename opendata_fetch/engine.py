@@ -15,6 +15,7 @@ Two guardrails catch the most common government-endpoint failure modes:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import shutil
@@ -40,12 +41,25 @@ class DownloadError(RuntimeError):
     """Raised when a download cannot be completed or fails a guardrail."""
 
 
+def sha256_file(path: Path | str) -> str:
+    """Return the hex SHA-256 digest of a file, read in bounded blocks."""
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        while True:
+            block = fh.read(_BLOCK_SIZE)
+            if not block:
+                break
+            h.update(block)
+    return h.hexdigest()
+
+
 def download_file(
     url: str,
     dest_path: Path | str,
     *,
     force: bool = False,
     expected_min_bytes: int | None = None,
+    expected_sha256: str | None = None,
     retries: int = 3,
     backoff_seconds: float = 5.0,
     timeout_seconds: float = 300.0,
@@ -59,6 +73,11 @@ def download_file(
         expected_min_bytes: If set, raise :class:`DownloadError` when the
             downloaded file is smaller than this (catches truncated downloads
             and HTML error pages).
+        expected_sha256: If set, the downloaded file must match this digest or
+            :class:`DownloadError` is raised. Also upgrades the idempotent skip
+            from "a file exists" to "a *valid* file exists": an on-disk file
+            whose hash differs is re-downloaded. Only set this for immutable
+            files; rolling feeds would fail every time.
         retries: Number of attempts before giving up.
         backoff_seconds: Initial backoff between retries; doubled each retry.
         timeout_seconds: Socket timeout per attempt.
@@ -73,8 +92,13 @@ def download_file(
     dest_path.parent.mkdir(parents=True, exist_ok=True)
 
     if dest_path.exists() and not force:
-        log.info("  skip (already exists): %s", dest_path.name)
-        return dest_path
+        if expected_sha256 is None:
+            log.info("  skip (already exists): %s", dest_path.name)
+            return dest_path
+        if sha256_file(dest_path).lower() == expected_sha256.lower():
+            log.info("  skip (cached copy matches sha256): %s", dest_path.name)
+            return dest_path
+        log.info("  cached copy sha256 mismatch, re-downloading: %s", dest_path.name)
 
     tmp_path = dest_path.with_suffix(dest_path.suffix + ".part")
     ssl_ctx = ssl.create_default_context()
@@ -94,6 +118,7 @@ def download_file(
 
             _check_size(tmp_path, expected_min_bytes, url)
             _sniff_error_payload(tmp_path, url)
+            _check_sha256(tmp_path, expected_sha256, url)
 
             os.replace(tmp_path, dest_path)  # atomic
             size = dest_path.stat().st_size
@@ -123,6 +148,17 @@ def _check_size(path: Path, expected_min_bytes: int | None, url: str) -> None:
         raise DownloadError(
             f"Downloaded file is suspiciously small: {size:,} bytes "
             f"(expected at least {expected_min_bytes:,}). URL: {url}"
+        )
+
+
+def _check_sha256(path: Path, expected_sha256: str | None, url: str) -> None:
+    if expected_sha256 is None:
+        return
+    got = sha256_file(path)
+    if got.lower() != expected_sha256.lower():
+        raise DownloadError(
+            f"Downloaded file failed sha256 check: got {got}, "
+            f"expected {expected_sha256}. URL: {url}"
         )
 
 

@@ -35,6 +35,50 @@ def test_shipped_registry_has_no_unsubstituted_vars():
             assert "{" not in f.dest, f"{s.slug}: {f.dest}"
 
 
+def test_sha256_field_parses(tmp_path):
+    path = _write(
+        tmp_path,
+        """
+        [[source]]
+        slug = "x"
+        agency = "A"
+        dataset = "D"
+        [[source.files]]
+        url = "https://x.gov/f.zip"
+        dest = "f.zip"
+        sha256 = "abc123"
+        """,
+    )
+    src = get_source("x", path)
+    assert src.files[0].sha256 == "abc123"
+
+
+def test_sha256_defaults_to_none(tmp_path):
+    path = _write(
+        tmp_path,
+        """
+        [[source]]
+        slug = "x"
+        agency = "A"
+        dataset = "D"
+        [[source.files]]
+        url = "https://x.gov/f.zip"
+        dest = "f.zip"
+        """,
+    )
+    assert get_source("x", path).files[0].sha256 is None
+
+
+def test_shipped_pins_are_hex_sha256():
+    # Any pinned digest in the shipped registry must be a 64-char hex string.
+    import re
+
+    for s in list_sources():
+        for f in s.files:
+            if f.sha256 is not None:
+                assert re.fullmatch(r"[0-9a-fA-F]{64}", f.sha256), f"{s.slug}: {f.sha256}"
+
+
 def test_shipped_registry_min_bytes_present():
     # Every shipped file declares an integrity floor.
     for s in list_sources():

@@ -4,7 +4,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -42,8 +45,12 @@ def test_fetch_source_downloads_all_files(tmp_path, monkeypatch):
 
     seen = []
 
-    def fake_download(url, dest, *, force, expected_min_bytes):
+    def fake_download(url, dest, *, force, expected_min_bytes, expected_sha256=None):
         seen.append((url, str(dest), force, expected_min_bytes))
+        from pathlib import Path as _P
+
+        _P(dest).parent.mkdir(parents=True, exist_ok=True)
+        _P(dest).write_bytes(b"data")  # real file so the manifest can stat/hash it
         return dest
 
     monkeypatch.setattr(runner, "download_file", fake_download)
@@ -137,3 +144,39 @@ def test_bad_handler_spec_raises(tmp_path, monkeypatch):
 def test_unknown_slug_propagates():
     with pytest.raises(RegistryError):
         runner.fetch_source("99-nope")
+
+
+def test_manifest_written(tmp_path, monkeypatch):
+    path = _toml(
+        tmp_path,
+        """
+        [[source]]
+        slug = "x"
+        agency = "Agency X"
+        dataset = "Dataset X"
+        [[source.files]]
+        url = "https://x.gov/a.csv"
+        dest = "a.csv"
+        """,
+    )
+    monkeypatch.setattr(runner, "get_source", lambda slug: __import__(
+        "opendata_fetch.registry", fromlist=["get_source"]
+    ).get_source(slug, path))
+
+    payload = b"col\n1\n"
+
+    def fake_download(url, dest, *, force, expected_min_bytes, expected_sha256=None):
+        Path(dest).parent.mkdir(parents=True, exist_ok=True)
+        Path(dest).write_bytes(payload)
+        return dest
+
+    monkeypatch.setattr(runner, "download_file", fake_download)
+
+    runner.fetch_source("x", dest=tmp_path / "out")
+    manifest = json.loads((tmp_path / "out" / "x" / "manifest.json").read_text())
+    assert manifest["slug"] == "x"
+    assert manifest["agency"] == "Agency X"
+    assert "fetched_at" in manifest
+    assert manifest["files"][0]["dest"] == "a.csv"
+    assert manifest["files"][0]["bytes"] == len(payload)
+    assert manifest["files"][0]["sha256"] == hashlib.sha256(payload).hexdigest()

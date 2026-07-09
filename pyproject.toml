@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "opendata-fetch"
-version = "0.1.0"
+version = "0.2.0"
 description = "Reliably download U.S. government open datasets as the agencies ship them."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-authors = [{ name = "Bhanu Bade" }]
+authors = [{ name = "Bhanu B" }]
 keywords = ["open-data", "government", "federal", "download", "epa", "census", "cdc", "nces", "hrsa"]
 classifiers = [
     "Development Status :: 4 - Beta",

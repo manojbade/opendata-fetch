@@ -27,11 +27,18 @@ _REGISTRY_PATH = Path(__file__).resolve().parent / "sources.toml"
 
 @dataclass(frozen=True)
 class SourceFile:
-    """One downloadable file in a declarative source."""
+    """One downloadable file in a declarative source.
+
+    ``sha256`` is optional and should only be set for files that are immutable
+    once published (e.g. a fixed-vintage Census shapefile). Rolling files that
+    the agency republishes in place (daily feeds, "latest" URLs) must leave it
+    unset, or every fetch would fail on a legitimate content change.
+    """
 
     url: str
     dest: str
     min_bytes: int | None = None
+    sha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +111,7 @@ def _parse_source(raw: dict, index: int) -> Source:
                 url=_subst(f["url"], variables, slug),
                 dest=_subst(f["dest"], variables, slug),
                 min_bytes=f.get("min_bytes"),
+                sha256=f.get("sha256"),
             )
         )
 

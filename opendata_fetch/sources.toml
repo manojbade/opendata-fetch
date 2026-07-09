@@ -178,6 +178,11 @@ vars = { vintage = "2024" }
   url = "https://www2.census.gov/geo/tiger/GENZ{vintage}/shp/cb_{vintage}_us_tract_500k.zip"
   dest = "cb_{vintage}_us_tract_500k.zip"
   min_bytes = 40_000_000
+  # Census cartographic boundary files are immutable once published, so this
+  # vintage's bytes are pinned. When you bump `vintage`, re-pin (or drop this
+  # line): the new file has a different hash. Harvest it from a fetched
+  # manifest.json or `shasum -a 256`.
+  sha256 = "abdf8bdae175e1ff98c214d8783ce3d1e252ee49d76ce9353cefae892843fa0c"
 
 # --------------------------------------------------------------------------- #
 [[source]]
